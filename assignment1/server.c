@@ -56,7 +56,10 @@ int main(int argc, char const *argv[])
     // drop the privilege to "nobody" user to
     // process data from the client
     if (child == 0) {
-        setuid(65534);
+        if (setuid(65534) < 0) {
+            perror("set uid failed, please run with sudo");
+            exit(EXIT_FAILURE);
+        }
         printf("UID after privilege separation: %d\n", getuid());
         valread = read( new_socket , buffer, 1024);
         printf("%s\n",buffer );
