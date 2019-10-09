@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <pwd.h>
 #include <sys/wait.h>
 #define PORT 8080
 int main(int argc, char const *argv[])
@@ -22,6 +23,10 @@ int main(int argc, char const *argv[])
         perror("socket failed");
         exit(EXIT_FAILURE);
     }
+
+    // get the uid of "nobody" user in system
+    struct passwd *pwd = getpwnam("nobody");
+    uid_t user_id = pwd->pw_uid;
 
     printf("UID before privilege separation: %d\n", getuid());
     pid_t child = fork(); // split
@@ -59,7 +64,7 @@ int main(int argc, char const *argv[])
             perror("accept");
             exit(EXIT_FAILURE);
         }
-        if (setuid(65534) < 0) {
+        if (setuid(user_id) < 0) {
             perror("set uid failed, please run with sudo");
             exit(EXIT_FAILURE);
         }
