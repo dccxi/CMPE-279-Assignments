@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <netinet/in.h>
 #include <string.h>
+#include <sys/wait.h>
 #define PORT 8080
 int main(int argc, char const *argv[])
 {
@@ -22,40 +23,42 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
-                                                  &opt, sizeof(opt)))
-    {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons( PORT );
-
-    // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address,
-                                 sizeof(address))<0)
-    {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0)
-    {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                       (socklen_t*)&addrlen))<0)
-    {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
     printf("UID before privilege separation: %d\n", getuid());
     pid_t child = fork(); // split
+
     // drop the privilege to "nobody" user to
-    // process data from the client
+    // attach port and process data from the client
     if (child == 0) {
+        // Forcefully attaching socket to the port 8080
+        if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
+                                                    &opt, sizeof(opt)))
+        {
+            perror("setsockopt");
+            exit(EXIT_FAILURE);
+        }
+        address.sin_family = AF_INET;
+        address.sin_addr.s_addr = INADDR_ANY;
+        address.sin_port = htons( PORT );
+
+        // Forcefully attaching socket to the port 8080
+        if (bind(server_fd, (struct sockaddr *)&address,
+                                    sizeof(address))<0)
+        {
+            perror("bind failed");
+            exit(EXIT_FAILURE);
+        }
+
+        if (listen(server_fd, 3) < 0)
+        {
+            perror("listen");
+            exit(EXIT_FAILURE);
+        }
+        if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+                        (socklen_t*)&addrlen))<0)
+        {
+            perror("accept");
+            exit(EXIT_FAILURE);
+        }
         if (setuid(65534) < 0) {
             perror("set uid failed, please run with sudo");
             exit(EXIT_FAILURE);
@@ -66,5 +69,7 @@ int main(int argc, char const *argv[])
         send(new_socket , hello , strlen(hello) , 0 );
         printf("Hello message sent\n");
     }
+    while (wait(NULL) > 0) ; // wait for the child process to complete
+
     return 0;
 }
