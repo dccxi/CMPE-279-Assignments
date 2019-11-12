@@ -7,18 +7,42 @@
 #include <string.h>
 #include <pwd.h>
 #include <sys/wait.h>
-#define PORT 8080
+#include <stdbool.h>
+
 int main(int argc, char const *argv[])
 {
     int server_fd, new_socket, valread;
-    if (argc > 1 && strcmp(argv[1], "-c") == 0) {
+    int PORT = 8080;
+    bool isChild = false;
+    FILE *fd = NULL;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "-p") == 0) {
+            // port specified
+            PORT = atoi(argv[i + 1]);
+        } else if (strcmp(argv[i], "-c") == 0) {
+            // socket handler
+            isChild = true;
+            server_fd = atoi(argv[i + 1]);
+        } else if (strcmp(argv[i], "-f") == 0) {
+            // file descriptor
+            if ((fd = fopen(argv[i + 1], "r")) == NULL) {
+                printf("Invalid file descriptor.");
+                return -1;
+            }
+        } else if (strcmp(argv[i], "--fd") == 0) {
+            fd = fdopen(atoi(argv[i + 1]), "r");
+        }
+    }
+
+
+    if (isChild) {
+
         struct sockaddr_in address;
         int opt = 1;
         int addrlen = sizeof(address);
         char buffer[1024] = {0};
         char *hello = "Hello from server";
 
-        server_fd = atoi(argv[2]);
         printf("new exec'ed server process. file descriptor passed in using argv\nserver_fd: %d\n", server_fd);
 
         // Forcefully attaching socket to the port 8080
@@ -83,7 +107,9 @@ int main(int argc, char const *argv[])
 
         char fd_buffer [33];
         sprintf(fd_buffer, "%d", server_fd);
-        if (execl("./server", "server", "-c", fd_buffer, NULL) < 0) {
+        char port_buffer [33];
+        sprintf(port_buffer, "%d", PORT);
+        if (execl("./server", "server", "-p", port_buffer, "-c", fd_buffer, NULL) < 0) {
             perror("execl failed");
             exit(EXIT_FAILURE);
         }
