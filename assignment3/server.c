@@ -11,15 +11,14 @@
 int main(int argc, char const *argv[])
 {
     int server_fd, new_socket, valread;
-    if (argc == 2) {
+    if (argc > 1 && strcmp(argv[1], "-c") == 0) {
         struct sockaddr_in address;
         int opt = 1;
         int addrlen = sizeof(address);
         char buffer[1024] = {0};
         char *hello = "Hello from server";
 
-        printf("UID after fork & exec: %d\n", getuid());
-        server_fd = atoi(argv[1]);
+        server_fd = atoi(argv[2]);
         printf("new exec'ed server process. file descriptor passed in using argv\nserver_fd: %d\n", server_fd);
 
         // Forcefully attaching socket to the port 8080
@@ -84,7 +83,7 @@ int main(int argc, char const *argv[])
 
         char fd_buffer [33];
         sprintf(fd_buffer, "%d", server_fd);
-        if (execl("./server", "server", fd_buffer, NULL) < 0) {
+        if (execl("./server", "server", "-c", fd_buffer, NULL) < 0) {
             perror("execl failed");
             exit(EXIT_FAILURE);
         }
