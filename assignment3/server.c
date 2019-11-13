@@ -34,8 +34,31 @@ int main(int argc, char const *argv[])
         }
     }
 
-
     if (isChild) {
+        // get the uid of "nobody" user in system
+        struct passwd *pwd = getpwnam("nobody");
+        uid_t user_id = pwd->pw_uid;
+
+        printf("UID before privilege separation: %d\n", getuid());
+
+        // change root to `empty` folder
+        if (chdir("./empty") != 0) {
+            perror("chdir failed");
+            exit(EXIT_FAILURE);
+        }
+        if (chroot("./") != 0) {
+            perror("chroot failed");
+            exit(EXIT_FAILURE);
+        }
+        printf("chroot to \"./empty/\"\n");
+
+        // drop the privilege to "nobody" user to
+        if (setuid(user_id) < 0) {
+            perror("set uid failed, please run with sudo");
+            exit(EXIT_FAILURE);
+        }
+        printf("UID after privilege separation: %d\n", getuid());
+
         struct sockaddr_in address;
         int opt = 1;
         int addrlen = sizeof(address);
@@ -44,6 +67,13 @@ int main(int argc, char const *argv[])
 
         if (fd != NULL) {
             printf("file_descriptor passed in\n");
+            char c;
+            c = fgetc(fd);
+            while (c != EOF) {
+                printf("%c", c);
+                c = fgetc(fd);
+            }
+            fclose(fd);
         }
 
         printf("socket server_fd: %d\n", server_fd);
@@ -93,21 +123,8 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // get the uid of "nobody" user in system
-    struct passwd *pwd = getpwnam("nobody");
-    uid_t user_id = pwd->pw_uid;
-
-    printf("UID before privilege separation: %d\n", getuid());
-
-    // drop the privilege to "nobody" user to
     // attach port and process data from the client
     if (fork() == 0) { // split
-        if (setuid(user_id) < 0) {
-            perror("set uid failed, please run with sudo");
-            exit(EXIT_FAILURE);
-        }
-        printf("UID after privilege separation: %d\n", getuid());
-
         char socket_buffer [33];
         sprintf(socket_buffer, "%d", server_fd);
         char port_buffer [33];
