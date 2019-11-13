@@ -15,6 +15,7 @@ int main(int argc, char const *argv[])
     int PORT = 8080;
     bool isChild = false;
     FILE *fd = NULL;
+    // parse arguments
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "-p") == 0) {
             // port specified
@@ -24,12 +25,13 @@ int main(int argc, char const *argv[])
             isChild = true;
             server_fd = atoi(argv[i + 1]);
         } else if (strcmp(argv[i], "-f") == 0) {
-            // file descriptor
+            // filename
             if ((fd = fopen(argv[i + 1], "r")) == NULL) {
                 printf("Invalid file descriptor.");
                 return -1;
             }
         } else if (strcmp(argv[i], "--fd") == 0 && atoi(argv[i + 1]) != -1) {
+            // file descriptor
             fd = fdopen(atoi(argv[i + 1]), "r");
         }
     }
@@ -63,17 +65,9 @@ int main(int argc, char const *argv[])
         int opt = 1;
         int addrlen = sizeof(address);
         char buffer[1024] = {0};
-        char *hello = "Hello from server";
 
         if (fd != NULL) {
             printf("file_descriptor passed in\n");
-            char c;
-            c = fgetc(fd);
-            while (c != EOF) {
-                printf("%c", c);
-                c = fgetc(fd);
-            }
-            fclose(fd);
         }
 
         printf("socket server_fd: %d\n", server_fd);
@@ -111,8 +105,18 @@ int main(int argc, char const *argv[])
 
         valread = read( new_socket , buffer, 1024);
         printf("%s\n",buffer );
-        send(new_socket , hello , strlen(hello) , 0 );
-        printf("Hello message sent\n");
+        if (fd == NULL) {
+            char *hello = "Hello from server";
+            send(new_socket , hello , strlen(hello) , 0 );
+            printf("Hello message sent\n");
+        } else {
+            printf("Sending text file content to client\n");
+            char text[1024];
+            while (fgets(text, 1024, fd) != NULL) {
+                send(new_socket , text , strlen(text) , 0 );
+            }
+            printf("File content sent\n");
+        }
         return 0;
     }
 
