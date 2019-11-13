@@ -7,6 +7,8 @@
 #include <string.h>
 #include <pwd.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <stdbool.h>
 
 int main(int argc, char const *argv[])
@@ -44,6 +46,11 @@ int main(int argc, char const *argv[])
         printf("UID before privilege separation: %d\n", getuid());
 
         // change root to `empty` folder
+
+        struct stat st = {0};
+        if (stat("./empty", &st) == -1) {
+            mkdir("./empty", 0700);
+        }
         if (chdir("./empty") != 0) {
             perror("chdir failed");
             exit(EXIT_FAILURE);
