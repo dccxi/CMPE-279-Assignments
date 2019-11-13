@@ -29,21 +29,24 @@ int main(int argc, char const *argv[])
                 printf("Invalid file descriptor.");
                 return -1;
             }
-        } else if (strcmp(argv[i], "--fd") == 0) {
+        } else if (strcmp(argv[i], "--fd") == 0 && atoi(argv[i + 1]) != -1) {
             fd = fdopen(atoi(argv[i + 1]), "r");
         }
     }
 
 
     if (isChild) {
-
         struct sockaddr_in address;
         int opt = 1;
         int addrlen = sizeof(address);
         char buffer[1024] = {0};
         char *hello = "Hello from server";
 
-        printf("new exec'ed server process. file descriptor passed in using argv\nserver_fd: %d\n", server_fd);
+        if (fd != NULL) {
+            printf("file_descriptor passed in\n");
+        }
+
+        printf("socket server_fd: %d\n", server_fd);
 
         // Forcefully attaching socket to the port 8080
         if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT,
@@ -105,11 +108,13 @@ int main(int argc, char const *argv[])
         }
         printf("UID after privilege separation: %d\n", getuid());
 
-        char fd_buffer [33];
-        sprintf(fd_buffer, "%d", server_fd);
+        char socket_buffer [33];
+        sprintf(socket_buffer, "%d", server_fd);
         char port_buffer [33];
         sprintf(port_buffer, "%d", PORT);
-        if (execl("./server", "server", "-p", port_buffer, "-c", fd_buffer, NULL) < 0) {
+        char fd_buffer [33];
+        sprintf(fd_buffer, "%d", fd == NULL ? -1 : fileno(fd));
+        if (execl("./server", "server", "-p", port_buffer, "-c", socket_buffer, "--fd", fd_buffer, NULL) < 0) {
             perror("execl failed");
             exit(EXIT_FAILURE);
         }
